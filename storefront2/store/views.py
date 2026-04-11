@@ -33,12 +33,13 @@ def product_list(request):
 
 @api_view(["GET", "PUT"])
 def product_detail(request, pk):
+    product = get_object_or_404(Product, pk=pk)
     if request.method == "GET":
-       product = get_object_or_404(Product, pk=pk)
        serializer = ProductSerializer(product, context={'request': request})
        return Response(serializer.data)
     elif request.method == "PUT":
       #   product = get_object_or_404(Product, pk=pk)
+    #   deserialization process is to convert the incoming data (request.data) into a Python object that can be used to update the existing product instance.
         serializer = ProductSerializer(product, data=request.data, context={'request': request})
         serializer.is_valid(raise_exception=True)
         serializer.save()
