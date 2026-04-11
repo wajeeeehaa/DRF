@@ -42,7 +42,7 @@ class ProductSerializer(serializers.ModelSerializer):
 #     return data 
 # from above function it will return error or dictionary 
 
-def create(self, validated_data):
+# def create(self, validated_data):
     # unpacking the dictionary to create a product
     # why do we need to unpack the dictionary? because the create method
     #  of the model serializer expects individual keyword arguments,
@@ -51,13 +51,13 @@ def create(self, validated_data):
     # in the dictionary as a separate argument to the create method. 
     # This allows the create method to properly initialize a new instance 
     # of the model with the provided data.
-    product = Product.objects.create(**validated_data)
-    product.other = 1
-    product.save()
-    return product
+    # product = Product.objects.create(**validated_data)
+    # product.other = 1
+    # product.save()
+    # return product
 
-def update(self , instance, validated_data):
-    instance.unit_price = validated_data.get('unit_price')
-    instance.save()
-    return instance
+# def update(self , instance, validated_data):
+#     instance.unit_price = validated_data.get('unit_price')
+#     instance.save()
+#     return instance
     
