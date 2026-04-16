@@ -2,77 +2,58 @@ from django.shortcuts import render
 from django.http import HttpResponse
 from django.http import HttpRequest
 from rest_framework.decorators import api_view
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.response import Response
-from .models import Product, Collection
+from .models import Product, Collection , Review ,OrderItem
 from rest_framework import status
 from rest_framework.views import APIView
-from .serializers import ProductSerializer, CollectionSerializer
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.viewsets import ModelViewSet
+from .serializers import ProductSerializer, CollectionSerializer , ReviewSerializer
 from django.shortcuts import get_object_or_404
 from django.db.models import Count
+from .filters import ProductFilter
 
-class ProductList(APIView):
-    def get(self, request):
-        query_set = Product.objects.select_related('collection').all()
-        serializer = ProductSerializer(query_set, many=True, context={'request': request})
-        return Response(serializer.data)
-
-    def post(self, request):
-        serializer = ProductSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        print(serializer.validated_data)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+# in view set we join logic of multiple related views into a single class. 
+# This can help reduce code duplication and make it easier to manage related views. For example, instead of having separate classes for listing products, creating products, retrieving product details, updating products, and deleting products, we can combine all of these actions into a single ProductViewSet class. This can make our code more organized and easier to maintain, especially as our application grows in complexity. Additionally, view sets can provide built-in functionality for common actions like pagination, filtering, and authentication, which can further simplify our code and improve the overall user experience of our API.
+class ProductViewSet(ModelViewSet):
     
-class ProductDetail(APIView):
-    def get(self, request, pk):
-        product= get_object_or_404(Product, pk=pk)
-          # Go to the database and get this specific product. If it doesn't exist, stop everything
-    #  immediately and tell the user '404 Not Found'."
-        serializer = ProductSerializer(product, context={'request': request})
-        return Response(serializer.data)
-    def put(self, request, pk):
-        product = get_object_or_404(Product, pk=pk)
-        serializer = ProductSerializer(product, data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
-    def delete(self, request, pk):
-        product = get_object_or_404(Product, pk=pk)
-        if product.orderitems.count() > 0:
+    queryset= Product.objects.all()
+    serializer_class = ProductSerializer
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = ProductFilter
+
+    # def get_queryset(self):
+    # #  Go to the database and grab every single product we have. Put them in a box called queryset."
+    #    queryset= Product.objects.all()
+    # #   is a dictionary that holds anything typed after the ? in the URL.
+    #    collection_id= self.request.query_params.get("collection_id")
+    # #   However, what you wrote here uses self.request.query_params. 
+    # # This looks for variables at the very end of the URL, after a question mark ?.
+    #    if collection_id is not None:
+    #        queryset= queryset.filter(collection_id=collection_id)
+
+    #    return queryset
+
+    def get_serializer_context(self):
+        return {'request' : self.request}   
+    
+    def destroy(self, request, *args, **kwargs):
+        if OrderItem.objects.filter(product_id=kwargs['pk']).count() > 0:
             return Response({"error": "Product cannot be deleted because it is associated with an order item."}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-        product.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        
+        return super().destroy(request, *args, **kwargs)
+    # def delete(self, request, pk):
+    #     product = get_object_or_404(Product, pk=pk)
+    #     if product.orderitems.count() > 0:
+    #         return Response({"error": "Product cannot be deleted because it is associated with an order item."}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    #     product.delete()
+    #     return Response(status=status.HTTP_204_NO_CONTENT)
 
-class CollectionList(APIView):
-    def get(self, request):
-        query_set = Collection.objects.annotate(products_count=Count('product'))
-        serializer = CollectionSerializer(query_set, many=True)
-        return Response(serializer.data)
+class CollectionViewSet(ModelViewSet):
 
-    def post(self, request):
-        serializer = CollectionSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        collection = serializer.save()
-        # Re-fetch with annotation to show products_count in response
-        collection = Collection.objects.annotate(products_count=Count('product')).get(pk=collection.pk)
-        serializer = CollectionSerializer(collection)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-class CollectionDetail(APIView):
-    def get(self, request, pk):
-        collection = get_object_or_404(Collection.objects.annotate(products_count=Count('product')), pk=pk)
-        serializer = CollectionSerializer(collection)
-        return Response(serializer.data)
-
-    def put(self, request, pk):
-        collection = get_object_or_404(Collection.objects.annotate(products_count=Count('product')), pk=pk)
-        serializer = CollectionSerializer(collection, data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        # Re-fetch with annotation to show products_count in response
-        collection = Collection.objects.annotate(products_count=Count('product')).get(pk=collection.pk)
-        serializer = CollectionSerializer(collection)
-        return Response(serializer.data)
+    queryset = Collection.objects.annotate(products_count=Count('product'))
+    serializer_class = CollectionSerializer
 
     def delete(self, request, pk):
         collection = get_object_or_404(Collection.objects.annotate(products_count=Count('product')), pk=pk)
@@ -80,7 +61,28 @@ class CollectionDetail(APIView):
             return Response({"error": "Collection cannot be deleted because it includes one or more products."}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
         collection.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+     
+class ReviewViewSet(ModelViewSet):
+    serializer_class = ReviewSerializer
+    def get_queryset(self):
+        return Review.objects.filter(product_id=self.kwargs["product_pk"])
+    # In your Review model, you likely have a ForeignKey pointing to a Product. 
+    # By default, Django creates a database column for this called product_id
+    # self.kwargs is a dictionary that Django uses to store variables it extracts from the URL.
+    # Imagine a user goes to http://yourwebsite.com/products/8/reviews/ to see the reviews for product number 8. Here is exactly what happens in that single line of code:
+   # Django looks at the URL and grabs the 8.
+   # It stores it in self.kwargs like this: {'product_pk': 8}.
+# Your code asks for that number using self.kwargs["product_pk"] The line of code essentially transforms into this behind the scenes:
+# Python
+# return Review.objects.filter(product_id=8)
+# Django queries the database, fetches only the reviews attached to Product #8, and returns them to the user.
 
+    def get_serializer_context(self):
+        return {'product_id' : self.kwargs['product_pk']}
+# The URL defines the name product_pk.
+# The ViewSet reads product_pk from the URL.
+# The ViewSet creates a dictionary, invents a new key called product_id, and assigns the number to it.
+# The Serializer reads the self.context dictionary looking for the product_id key you created.
 # @api_view(["GET", "POST"])
 # # Treat this function as an API endpoint. Accept JSON, return JSON,
 # # and give me a nice browsable API interface in my browser

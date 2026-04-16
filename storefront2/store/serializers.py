@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from decimal import Decimal
-from store.models import Product, Collection
+from store.models import Product, Collection , Review
 
 class CollectionSerializer(serializers.ModelSerializer):
     # id = serializers.IntegerField()
@@ -62,4 +62,15 @@ class ProductSerializer(serializers.ModelSerializer):
 #     instance.unit_price = validated_data.get('unit_price')
 #     instance.save()
 #     return instance
+class ReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= Review
+        fields = ['id', 'name', 'description','date']
     
+        def create(self, validated_data):
+        # 1. Unpack the product_id from the context "backpack"
+          product_id = self.context['product_pk']
+        # 2. Create the review, merging the product_id with the user's data
+          return Review.objects.create(product_id=product_id, **validated_data)
+
+  
