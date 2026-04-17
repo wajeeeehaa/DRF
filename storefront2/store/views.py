@@ -1,15 +1,14 @@
 from django.shortcuts import render
-from django.http import HttpResponse
-from django.http import HttpRequest
 from rest_framework.decorators import api_view
-from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.response import Response
-from .models import Product, Collection , Review ,OrderItem
+from .models import Product, Collection , Review ,OrderItem , Cart
 from rest_framework import status
-from rest_framework.views import APIView
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.viewsets import ModelViewSet
-from .serializers import ProductSerializer, CollectionSerializer , ReviewSerializer
+from rest_framework.filters import SearchFilter , OrderingFilter
+from rest_framework.viewsets import ModelViewSet , GenericViewSet
+from rest_framework.mixins import ListModelMixin , CreateModelMixin , RetrieveModelMixin 
+from rest_framework.pagination import PageNumberPagination
+from .serializers import ProductSerializer, CollectionSerializer , ReviewSerializer , CartSerializer
 from django.shortcuts import get_object_or_404
 from django.db.models import Count
 from .filters import ProductFilter
@@ -20,13 +19,14 @@ class ProductViewSet(ModelViewSet):
     
     queryset= Product.objects.all()
     serializer_class = ProductSerializer
-    filter_backends = [DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = ProductFilter
-
+    search_fields = ['title', 'description']
+    ordering_fields= ['unit_price' , 'last_update']
+    pagination_class = PageNumberPagination
     # def get_queryset(self):
     # #  Go to the database and grab every single product we have. Put them in a box called queryset."
-    #    queryset= Product.objects.all()
-    # #   is a dictionary that holds anything typed after the ? in the URL.
+     # #   is a dictionary that holds anything typed after the ? in the URL.
     #    collection_id= self.request.query_params.get("collection_id")
     # #   However, what you wrote here uses self.request.query_params. 
     # # This looks for variables at the very end of the URL, after a question mark ?.
@@ -83,6 +83,12 @@ class ReviewViewSet(ModelViewSet):
 # The ViewSet reads product_pk from the URL.
 # The ViewSet creates a dictionary, invents a new key called product_id, and assigns the number to it.
 # The Serializer reads the self.context dictionary looking for the product_id key you created.
+class CartViewSet(CreateModelMixin , GenericViewSet):
+    # idk how to filter out it but agr admin side sy dekhi jaye 
+    # to sbki list bhi show kr skty hain 
+    queryset = Cart.objects.all()
+    serializer_class= CartSerializer
+
 # @api_view(["GET", "POST"])
 # # Treat this function as an API endpoint. Accept JSON, return JSON,
 # # and give me a nice browsable API interface in my browser
