@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "django_filters",
     "rest_framework",
     "store",
+    "core",
 ]
 
 MIDDLEWARE = [
@@ -53,6 +54,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "storefront2.urls"
+AUTH_USER_MODEL = 'core.User'
 
 TEMPLATES = [
     {

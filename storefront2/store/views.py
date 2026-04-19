@@ -1,14 +1,14 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import Product, Collection , Review ,OrderItem , Cart
+from .models import Product, Collection , Review ,OrderItem , Cart ,CartItem
 from rest_framework import status
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter , OrderingFilter
 from rest_framework.viewsets import ModelViewSet , GenericViewSet
-from rest_framework.mixins import ListModelMixin , CreateModelMixin , RetrieveModelMixin 
+from rest_framework.mixins import ListModelMixin , CreateModelMixin , RetrieveModelMixin , DestroyModelMixin 
 from rest_framework.pagination import PageNumberPagination
-from .serializers import ProductSerializer, CollectionSerializer , ReviewSerializer , CartSerializer
+from .serializers import ProductSerializer, CollectionSerializer , ReviewSerializer , CartSerializer ,CartItemSerializer , AddCartItemSerializer , UpdateCartItemSerializer
 from django.shortcuts import get_object_or_404
 from django.db.models import Count
 from .filters import ProductFilter
@@ -83,11 +83,26 @@ class ReviewViewSet(ModelViewSet):
 # The ViewSet reads product_pk from the URL.
 # The ViewSet creates a dictionary, invents a new key called product_id, and assigns the number to it.
 # The Serializer reads the self.context dictionary looking for the product_id key you created.
-class CartViewSet(CreateModelMixin , GenericViewSet):
+class CartViewSet(CreateModelMixin , ListModelMixin, RetrieveModelMixin, DestroyModelMixin, GenericViewSet):
     # idk how to filter out it but agr admin side sy dekhi jaye 
     # to sbki list bhi show kr skty hain 
-    queryset = Cart.objects.all()
+    queryset = Cart.objects.prefetch_related("items__product").all()
     serializer_class= CartSerializer
+
+class CartItemViewSet(ModelViewSet):
+    http_method_names = ['get', 'post', 'patch', 'delete']
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return AddCartItemSerializer
+        elif self.request.method== "PATCH":
+            return UpdateCartItemSerializer
+        return CartItemSerializer
+    def get_serializer_context(self):
+        return {"cart_id": self.kwargs["cart_pk"]}
+    def get_queryset(self):
+         return CartItem.objects\
+    .filter(cart_id=self.kwargs["cart_pk"])\
+    .select_related("product")
 
 # @api_view(["GET", "POST"])
 # # Treat this function as an API endpoint. Accept JSON, return JSON,

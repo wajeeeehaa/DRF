@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from decimal import Decimal
-from store.models import Product, Collection , Review , Cart
+from store.models import Product, Collection , Review , Cart , CartItem
 
 class CollectionSerializer(serializers.ModelSerializer):
     # id = serializers.IntegerField()
@@ -73,8 +73,62 @@ class ReviewSerializer(serializers.ModelSerializer):
         # 2. Create the review, merging the product_id with the user's data
           return Review.objects.create(product_id=product_id, **validated_data)
 
+class SimpleproductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = ['id', 'title', 'unit_price']
+
+class CartItemSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
+    product=SimpleproductSerializer()
+    total_price = serializers.SerializerMethodField(method_name='calculate_total_price')
+
+    def calculate_total_price(self, cart_item: CartItem):
+        return cart_item.quantity * cart_item.product.unit_price
+    class Meta:
+        model= CartItem 
+        fields= ["id", "product", "quantity", "total_price"]
+   
+class AddCartItemSerializer(serializers.ModelSerializer):
+    product_id = serializers.IntegerField()
+    def validate_product_id(self, value):
+        if not Product.objects.filter(pk=value).exists():
+            raise serializers.ValidationError("No product with the given ID was found.")
+        return value
+    
+    def save(self, **kwargs):
+        # extractedfrom url in vi
+        cart_id = self.context['cart_id']
+        # extracted from request body
+        product_id = self.validated_data['product_id']
+        quantity = self.validated_data['quantity']
+        try:
+            cart_item = CartItem.objects.get(cart_id=cart_id, product_id=product_id)
+            cart_item.quantity += quantity
+            cart_item.save()
+            self.instance = cart_item
+        except CartItem.DoesNotExist:
+            self.instance = CartItem.objects.create(cart_id=cart_id, **self.validated_data)
+        return self.instance
+    class Meta:
+        model= CartItem 
+        fields= ["id", "product_id", "quantity"]
+
+class UpdateCartItemSerializer(serializers.ModelSerializer):
+    # product_id = serializers.IntegerField(read_only=True)
+    class Meta:
+        model= CartItem 
+        fields= [ "quantity"]   
+  
 class CartSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(read_only=True)
+    items=CartItemSerializer(many=True, read_only=True)
+    total_price = serializers.SerializerMethodField(method_name='calculate_total_price')
+    def calculate_total_price(self, cart):
+        return sum([item.quantity * item.product.unit_price for item in cart.items.all()])
     class Meta:
         model= Cart
-        fields= ["id"]
-  
+        fields= ["id" ,"items","total_price"]
+    
+
+    # i want to show "item": {"product": {}}, "total_price": 100} , "total_price": 100

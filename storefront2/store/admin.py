@@ -22,7 +22,7 @@ class InventoryFilter(admin.SimpleListFilter):
 
 @admin.register(models.Product)
 class ProductAdmin(admin.ModelAdmin):
-    autocomplete_fields = ['collection']
+    raw_id_fields = ['collection']
     prepopulated_fields = {
         'slug': ['title']
     }
@@ -56,7 +56,7 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(models.Collection)
 class CollectionAdmin(admin.ModelAdmin):
-    autocomplete_fields = ['featured_product']
+    raw_id_fields = ['featured_product']
     list_display = ['title', 'products_count']
     search_fields = ['title']
 
@@ -81,7 +81,7 @@ class CustomerAdmin(admin.ModelAdmin):
     list_display = ['first_name', 'last_name',  'membership', 'orders']
     list_editable = ['membership']
     list_per_page = 10
-    ordering = ['first_name', 'last_name']
+    ordering = ['user__first_name', 'user__last_name']
     search_fields = ['first_name__istartswith', 'last_name__istartswith']
 
     @admin.display(ordering='orders_count')
@@ -101,7 +101,7 @@ class CustomerAdmin(admin.ModelAdmin):
 
 
 class OrderItemInline(admin.TabularInline):
-    autocomplete_fields = ['product']
+    raw_id_fields = ['product']
     min_num = 1
     max_num = 10
     model = models.OrderItem
@@ -110,6 +110,6 @@ class OrderItemInline(admin.TabularInline):
 
 @admin.register(models.Order)
 class OrderAdmin(admin.ModelAdmin):
-    autocomplete_fields = ['customer']
+    raw_id_fields = ['customer']
     inlines = [OrderItemInline]
     list_display = ['id', 'placed_at', 'customer']
