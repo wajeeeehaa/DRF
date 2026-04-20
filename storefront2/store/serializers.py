@@ -134,7 +134,7 @@ class CartSerializer(serializers.ModelSerializer):
     # i want to show "item": {"product": {}}, "total_price": 100} , "total_price": 100
 
 class CustomerSerializer(serializers.ModelSerializer):
-    user_id = serializers.IntegerField()
+    user_id = serializers.IntegerField(read_only=True)
     class Meta:
         model= Customer
         fields= ["id", "user_id", "membership",  "phone", "birth_date"]
