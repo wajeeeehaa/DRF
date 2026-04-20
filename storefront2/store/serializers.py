@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from decimal import Decimal
-from store.models import Product, Collection , Review , Cart , CartItem
+from store.models import Product, Collection , Review , Cart , CartItem , Customer
 
 class CollectionSerializer(serializers.ModelSerializer):
     # id = serializers.IntegerField()
@@ -132,3 +132,9 @@ class CartSerializer(serializers.ModelSerializer):
     
 
     # i want to show "item": {"product": {}}, "total_price": 100} , "total_price": 100
+
+class CustomerSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField()
+    class Meta:
+        model= Customer
+        fields= ["id", "user_id", "membership",  "phone", "birth_date"]

@@ -1,17 +1,21 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import Product, Collection , Review ,OrderItem , Cart ,CartItem
+from .models import Product, Collection , Review ,OrderItem , Cart ,CartItem ,Customer
 from rest_framework import status
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter , OrderingFilter
 from rest_framework.viewsets import ModelViewSet , GenericViewSet
-from rest_framework.mixins import ListModelMixin , CreateModelMixin , RetrieveModelMixin , DestroyModelMixin 
+from rest_framework.mixins import ListModelMixin , CreateModelMixin , RetrieveModelMixin , DestroyModelMixin ,UpdateModelMixin
+from rest_framework.permissions import IsAuthenticated, AllowAny , IsAdminUser , DjangoModelPermissions
+from rest_framework import permissions
+from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
-from .serializers import ProductSerializer, CollectionSerializer , ReviewSerializer , CartSerializer ,CartItemSerializer , AddCartItemSerializer , UpdateCartItemSerializer
+from .serializers import ProductSerializer, CollectionSerializer , ReviewSerializer , CartSerializer ,CartItemSerializer , AddCartItemSerializer , UpdateCartItemSerializer , CustomerSerializer
 from django.shortcuts import get_object_or_404
 from django.db.models import Count
 from .filters import ProductFilter
+from .permissions import IsAdminOrReadOnly
 
 # in view set we join logic of multiple related views into a single class. 
 # This can help reduce code duplication and make it easier to manage related views. For example, instead of having separate classes for listing products, creating products, retrieving product details, updating products, and deleting products, we can combine all of these actions into a single ProductViewSet class. This can make our code more organized and easier to maintain, especially as our application grows in complexity. Additionally, view sets can provide built-in functionality for common actions like pagination, filtering, and authentication, which can further simplify our code and improve the overall user experience of our API.
@@ -23,6 +27,7 @@ class ProductViewSet(ModelViewSet):
     filterset_class = ProductFilter
     search_fields = ['title', 'description']
     ordering_fields= ['unit_price' , 'last_update']
+    permission_classes = [IsAdminOrReadOnly]
     pagination_class = PageNumberPagination
     # def get_queryset(self):
     # #  Go to the database and grab every single product we have. Put them in a box called queryset."
@@ -54,6 +59,7 @@ class CollectionViewSet(ModelViewSet):
 
     queryset = Collection.objects.annotate(products_count=Count('product'))
     serializer_class = CollectionSerializer
+    permission_classes = [IsAdminOrReadOnly]
 
     def delete(self, request, pk):
         collection = get_object_or_404(Collection.objects.annotate(products_count=Count('product')), pk=pk)
@@ -103,6 +109,30 @@ class CartItemViewSet(ModelViewSet):
          return CartItem.objects\
     .filter(cart_id=self.kwargs["cart_pk"])\
     .select_related("product")
+
+class CustomerViewSet(ModelViewSet):
+   queryset= Customer.objects.all()
+   serializer_class=CustomerSerializer
+   permission_classes= [IsAdminUser, DjangoModelPermissions]
+
+
+#    def get_permissions(self):
+#       if self.request.method == 'GET':
+#           return [AllowAny()]
+#       return [IsAuthenticated()]
+
+   @action(detail=False, methods=["GET", "PUT"] , permission_classes=[IsAuthenticated])
+   def me(self, request):
+        customer = Customer.objects.get(user_id=request.user.id)
+        if request.method == "GET":
+            serializer = CustomerSerializer(customer)
+            return Response(serializer.data)
+        elif request.method == "PUT":
+            serializer = CustomerSerializer(customer, data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+
 
 # @api_view(["GET", "POST"])
 # # Treat this function as an API endpoint. Accept JSON, return JSON,
